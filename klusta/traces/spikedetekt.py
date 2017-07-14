@@ -270,6 +270,7 @@ class SpikeDetekt(object):
 
     def apply_filter(self, data):
         """Filter the traces."""
+        # FPB filter is re-created at each chunk, probably not such a big deal
         filter = self._create_filter()
         return filter(data).astype(np.float32)
 
@@ -564,6 +565,7 @@ class SpikeDetekt(object):
         # Dictionary {chunk_key: components}.
         # Every chunk has a unique key: the `keep_start` integer.
         n_spikes_total = 0
+        # use overlapping chunks
         for chunk in tqdm(self.iter_chunks(n_samples),
                           desc='Detecting spikes'.ljust(24),
                           total=n_chunks, leave=True):

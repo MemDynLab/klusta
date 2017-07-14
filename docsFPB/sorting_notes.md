@@ -70,13 +70,68 @@ Another worrying point is that the threshold is only computed from a few samples
   is done on the excerpts for threshold finding once, and then for the actual spike detection a second time, but this will
   probably be negligible). 
 
-
+if `use_single_threshold` is `True`, the threshold is computed from all the channels at the same time. If `False` the 
+threshold is computed separately for different channels. This may be useful if channels have very different impedance 
+(sometimes the case for tetrodes) of for e.g. different brain locations with different noise levels (for example 
+different shanks). 
+ 
 ##### mask computation 
-Mask computation is not performed on the features vectors as described in Kadir et al. *Neur Comp* 2014, but it is rather
-based on thresholding on the raw signals. the  mask will correspond to a connected component containing at least one channel 
+Mask computation is  performed as described in Kadir et al. *Neur Comp* 2014, but it is 
+based on thresholding on the raw signals, not the features. The  mask will correspond to a connected component containing at least one channel 
 exceeding `threshold_strong_std_factor` and containing all connected sites that exceed `threshold_weak_std_factor`. 
 If I am correct, this may mean that in cases where the masked EM behavior is not desired (for example, tetrodes), 
 one could just set `threshold_weak_std_factor` to zero. In this case, the mask should be assured to cover all sites for 
-all events, effectively reverting to standard EM. 
+all events, effectively reverting to standard EM. However, the mask will in this case fall in the "transition zone" between 
+zero and one and be effectively proportional to peak amplitude.
 
+##### spike detection 
+the workflow is in `SpikeDetekt.stepdetect` in spikedetekt.py:554. 
+Detection is performed on overlapping chunks, whose length/overlap is controlled by
+```python
+# Data chunks.
+'chunk_size_seconds': 1.,
+'chunk_overlap_seconds': .015,
+``` 
 
+The detection also takes care of calculating connected components for each spike. Connected components are computed 
+by a spatio-temporal floodfill algorithm, looking at timepoints/channel at which the weak threshold is computed. A temporal jitter of 
+`connected_component_join_size` is allowed between neighboring channel. 
+if the weak threshold is zero, then connection takes place regardless, therefore `join_size` can be safely set to zero 
+TODO make sure this is true.
+
+##### spike extraction 
+The spike extraction is performed by the `WaveformExtractor` class at waveform.py:43. 
+This acts on the filtered and transformed (e.g. sign is changed if thresholding is negative going) data
+How many samples are extracted is determined by the two parameters `extract_s_before` and `extract_s_after`. These refer to the 
+number of samples extracted for each waveform before and after the peak time. Peak time is computed as a weighted average of the
+peak times on all channels overcoming threshold. The weights computed from the mask (in `WaveformExtractor.spike_sample_aligned`, 
+waveform.py:130), raised to the power `weight_power`. This means that all channels overcoming strong threshold are weighted 
+equally (probably a wise choice). 
+
+##### PCA computation 
+Key computations taking place in _compute_pcs in pca.py:16
+For each channel, pca is computed from all the unmasked spikes (mask > 0, regardless of mask value) for that specific channel. 
+
+As (especially 
+for big probes) it could be that some channels had very few spikes unmasked, a "regularization" 
+covariance matrix , which is computed from all spikes from all channels is added to the channel
+based covariance matrix with weight equal to 1/N_spikes (see pca.py:64). Therefore its weight will be 
+quite negligible unless there are very few unmasked spikes on that channel. 
+
+##### feature extractions 
+on each channel, projections on the principal components are computed 
+
+##### saving data
+if legacy output is requested, spikes are saved in numpy txt format.
+
+##### TODOs
+- can you concatenate files directly in spikedetekt?
+spikedetekt.py:558
+```python
+
+# Use the recording offsets when dealing with multiple recordings.
+        self.recording_offsets = getattr(traces, 'offsets', [0, len(traces)])
+```
+
+- get rid of transition zone for binary thresholding. this would have to be done in the WaveformExtractor or slightly downstream
+ of that 

@@ -88,6 +88,8 @@ class WaveformExtractor(object):
                      )
 
     def _normalize(self, x):
+        # FPB this will find a mask value between zero and one. For tetrodes, a binary mask, effectively always one,
+        # may be more desirable.
         x = np.asarray(x)
         tw = self._thresholds['weak']
         ts = self._thresholds['strong']
@@ -100,6 +102,7 @@ class WaveformExtractor(object):
         # Data on weak threshold crossings. shape: (some_length, nc)
         wave = np.zeros((s_max - s_min, nc), dtype=data_t.dtype)
         # The sample where the peak is reached, on each channel.
+        # FPB Not true. Peaks are actually found in .masks(). These are all data points above weak threshold
         wave[comp_s - s_min, comp_ch] = data_t[comp_s, comp_ch]
         return wave
 
