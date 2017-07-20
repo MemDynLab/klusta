@@ -349,10 +349,11 @@ class FloodFillDetector(object):
 
     """
     def __init__(self, probe_adjacency_list=None, join_size=None,
-                 channels_per_group=None):
+                 channels_per_group=None, binary_masks=False):
         self._adjacency_list = probe_adjacency_list
         self._join_size = join_size
         self._channels_per_group = channels_per_group
+        self._binary_masks = binary_masks
 
     def __call__(self, weak_crossings=None, strong_crossings=None):
         weak_crossings = np.asarray(weak_crossings, np.bool)
@@ -365,7 +366,7 @@ class FloodFillDetector(object):
                                   strong_crossings=strong_crossings,
                                   probe_adjacency_list=self._adjacency_list,
                                   channels=all_channels,
-                                  join_size=self._join_size,
+                                  join_size=self._join_size
                                   )
         # cc is a list of list of pairs (sample, channel)
         return [np.array(c) for c in cc]

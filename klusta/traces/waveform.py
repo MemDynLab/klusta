@@ -2,9 +2,9 @@
 
 """Waveform extraction."""
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Imports
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 import logging
 
@@ -16,9 +16,9 @@ from ..utils import Bunch, _pad
 logger = logging.getLogger(__name__)
 
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Waveform extractor from a connected component
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 def _get_padded(data, start, end):
     """Return `data[start:end]` filling in with zeros outside array bounds
@@ -48,12 +48,14 @@ class WaveformExtractor(object):
                  weight_power=None,
                  thresholds=None,
                  channels_per_group=None,
+                 binary_masks=False
                  ):
         self._extract_before = extract_before
         self._extract_after = extract_after
         self._weight_power = weight_power if weight_power is not None else 1.
         self._thresholds = thresholds or {}
         self._channels_per_group = channels_per_group
+        self._binary_masks = binary_masks
         # mapping channel => channels in the shank
         self._dep_channels = {i: channels
                               for channels in channels_per_group.values()
@@ -62,7 +64,7 @@ class WaveformExtractor(object):
                                 for g, channels in channels_per_group.items()
                                 for i in channels}
 
-    def _component(self, component, data=None, n_samples=None):
+    def _component(self, component, n_samples=None):
         comp_s = component[:, 0]  # shape: (component_size,)
         comp_ch = component[:, 1]  # shape: (component_size,)
         channel = comp_ch[0]
@@ -95,7 +97,8 @@ class WaveformExtractor(object):
         ts = self._thresholds['strong']
         return np.clip((x - tw) / (ts - tw), 0, 1)
 
-    def _comp_wave(self, data_t, comp):
+    @staticmethod
+    def _comp_wave(data_t, comp):
         comp_s, comp_ch = comp.comp_s, comp.comp_ch
         s_min, s_max = comp.s_min, comp.s_max
         nc = data_t.shape[1]
@@ -125,6 +128,9 @@ class WaveformExtractor(object):
         masks_float = self._normalize(peaks_values)
         # Keep shank channels.
         masks_float = masks_float[channels]
+        if self._binary_masks:
+            masks_float = masks_float > 0.
+            masks_float = masks_float.astype(np.float)
         return masks_float
 
     def spike_sample_aligned(self, wave, comp):
@@ -155,7 +161,7 @@ class WaveformExtractor(object):
             f = interp1d(old_s, waveform, bounds_error=True,
                          kind='cubic', axis=0)
         except ValueError:
-            logger.warn("Interpolation error at time {0:d}".format(s))
+            logger.warning("Interpolation error at time {0:d}".format(s))
             return waveform
         return f(new_s)
 
@@ -165,7 +171,6 @@ class WaveformExtractor(object):
     def __call__(self, component=None, data=None, data_t=None):
         assert data.shape == data_t.shape
         comp = self._component(component,
-                               data=data,
                                n_samples=data_t.shape[0],
                                )
         channels = comp.channels
@@ -184,9 +189,9 @@ class WaveformExtractor(object):
         return comp.group, s_aligned, waveform_aligned, masks
 
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Waveform loader from traces (used in the manual sorting GUI)
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 def _before_after(n_samples):
     """Get the number of samples before and after."""

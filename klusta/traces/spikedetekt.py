@@ -240,10 +240,10 @@ class SpikeDetekt(object):
         join_size = self._kwargs['connected_component_join_size']
         return FloodFillDetector(probe_adjacency_list=graph,
                                  join_size=join_size,
-                                 channels_per_group=probe_channels,
+                                 channels_per_group=probe_channels
                                  )
 
-    def _create_extractor(self, thresholds):
+    def _create_extractor(self, thresholds, binary_masks=False):
         before = self._kwargs['extract_s_before']
         after = self._kwargs['extract_s_after']
         weight_power = self._kwargs['weight_power']
@@ -253,6 +253,7 @@ class SpikeDetekt(object):
                                  weight_power=weight_power,
                                  channels_per_group=probe_channels,
                                  thresholds=thresholds,
+                                 binary_masks=binary_masks
                                  )
 
     def _create_pca(self):
@@ -339,7 +340,7 @@ class SpikeDetekt(object):
                         strong_crossings=strong)
 
     def extract_spikes(self, components, traces_f,
-                       thresholds=None, keep_bounds=None, s_start=None):
+                       thresholds=None, keep_bounds=None, s_start=None, binary_masks=False):
         """Extract spikes from connected components.
 
         Returns a split object.
@@ -366,7 +367,7 @@ class SpikeDetekt(object):
         thresholder = self._create_thresholder()
         traces_t = thresholder.transform(traces_f)
         # Extract all waveforms.
-        extractor = self._create_extractor(thresholds)
+        extractor = self._create_extractor(thresholds, binary_masks=binary_masks)
         groups, samples, waveforms, masks = zip(*[extractor(component,
                                                             data=traces_f,
                                                             data_t=traces_t,
@@ -521,7 +522,7 @@ class SpikeDetekt(object):
     # Main loop
     # -------------------------------------------------------------------------
 
-    def _iter_spikes(self, n_samples, step_spikes=1, thresholds=None):
+    def _iter_spikes(self, n_samples, step_spikes=1, thresholds=None, binary_masks=False):
         """Iterate over extracted spikes (possibly subset).
 
         Yield a split dictionary `{group: {'waveforms': ..., ...}}`.
@@ -548,6 +549,7 @@ class SpikeDetekt(object):
                                         keep_bounds=chunk.keep_bounds,
                                         s_start=chunk.s_start,
                                         thresholds=thresholds,
+                                        binary_masks=binary_masks
                                         )
 
             yield chunk, split
@@ -603,8 +605,10 @@ class SpikeDetekt(object):
         w_subset = defaultdict(list)
         m_subset = defaultdict(list)
         n_spikes_total = 0
+        binary_masks = self._kwargs['binary_masks']
         for chunk, split in tqdm(self._iter_spikes(n_samples, step_spikes=k,
-                                                   thresholds=thresholds),
+                                                   thresholds=thresholds,
+                                                   binary_masks=binary_masks),
                                  desc='Extracting waveforms'.ljust(24),
                                  total=n_chunks,
                                  leave=True,

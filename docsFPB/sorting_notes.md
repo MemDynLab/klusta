@@ -135,3 +135,41 @@ spikedetekt.py:558
 
 - get rid of transition zone for binary thresholding. this would have to be done in the WaveformExtractor or slightly downstream
  of that 
+ 
+ 
+ 
+#### parameters for spikedetekt for tetrodes v1
+```python
+spikedetekt = {
+    'filter_low': 500.,
+    'filter_high_factor': 0.95 * .5,  # will be multiplied by the sample rate
+    'filter_butter_order': 3,
+
+    # Data chunks.
+    'chunk_size_seconds': 1.,
+    'chunk_overlap_seconds': .015,
+
+    # Threshold.
+    'n_excerpts': 50,
+    'excerpt_size_seconds': 20., # allow for more averaging in finding thresholds
+    'use_single_threshold': True,
+    'threshold_strong_std_factor': 4.5,
+    'threshold_weak_std_factor': 0., # to include all channels in the mask
+    'detect_spikes': 'negative',
+    'binary_masks': True, # ADDED parameter, make masks all 0 or 1s. The joint effect of these parameter values should to 
+                          # have all masks values at 1, which is likely desirable for tetrodes. 
+
+    # Connected components.
+    'connected_component_join_size': 1,
+
+    # Spike extractions.
+    'extract_s_before': 10,
+    'extract_s_after': 10,
+    'weight_power': 2,
+
+    # Features.
+    'n_features_per_channel': 3,
+    'pca_n_waveforms_max': 10000,
+
+}
+```
